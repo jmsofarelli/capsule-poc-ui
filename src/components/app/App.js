@@ -16,18 +16,18 @@ class App extends React.Component {
   }
 
   state = {
-    loginRequested: false,
     did: null,
     name: null,
-    fileName: null,
+    buffer: null,
+    title: '',
     fileSize: null,
     fileHash: null,
     ipfsHash: null,
-    buffer:'',
-    signedClaim: null,
-    ethAddress:'',
-    transactionHash:'',
-    txReceipt: ''
+    jwt: null,
+    capsuleHash: null,
+    ethAddress: null,
+    transactionHash: null,
+    txReceipt: null
   };
 
   handleLogin = (res) => {
@@ -56,12 +56,16 @@ class App extends React.Component {
     reader.onloadend = () => this.convertToBuffer(file, reader);
   };
 
+  updateTitle = (evt) => {
+    this.setState({ title: evt.target.value });
+  }
+
   convertToBuffer = (file, reader) => {
-    const fileName = file.name;
+    const fileType = file.type;
     const fileSize = file.size;
     const buffer = Buffer.from(reader.result);
     const fileHash = this.web3.utils.sha3(buffer.toString());
-    this.setState({buffer, fileName, fileSize, fileHash});
+    this.setState({buffer, fileType, fileSize, fileHash});
   };
 
   uploadFile = async (evt) => {
@@ -69,7 +73,7 @@ class App extends React.Component {
     await ipfs.add(this.state.buffer, (err, ipfsHash) => {
       console.log('err: ', err);
       console.log('ipfsHash: ', ipfsHash);
-      this.setState({ ipfsHash:ipfsHash[0].hash });
+      this.setState({ ipfsHash: ipfsHash[0].hash });
     }); 
   }
 
@@ -86,11 +90,33 @@ class App extends React.Component {
 
   handleSignature = async (res) => {
     const jwt = res.payload;
+    this.setState({ jwt });
     const decodedJWT = didJWT.decodeJWT(jwt);
     const verifiedJWT = await didJWT.verifyJWT(jwt);
     console.log('decodedJWT', decodedJWT);
     console.log('verifiedJWT', verifiedJWT);
   };
+
+  uploadCapsule = async (evt) => {
+    const capsuleObj = {
+      author_name: this.state.name,
+      author_did: this.state.did,
+      content_title: this.state.title,
+      content_ipfs: this.state.ipfsHash,
+      content_type: this.state.fileType,
+      file_hash: this.state.fileHash,
+      file_size: this.state.fileSize,
+      jwt: this.state.jwt
+    };
+    console.log("Capsule: ", capsuleObj);
+    const capsuleStr =  JSON.stringify(capsuleObj);
+    const capsuleBuffer = Buffer.from(capsuleStr, 'utf8');
+    await ipfs.add(capsuleBuffer , (err, capsuleHash) => {
+      console.log('err: ', err);
+      console.log('capsuleHash: ', capsuleHash);
+      this.setState({ capsuleHash: capsuleHash[0].hash });
+    });
+  }
     
   render() {
     if (!this.state.did) {
@@ -106,17 +132,24 @@ class App extends React.Component {
           <p>Name: {this.state.name}</p>
           <p>DID: {this.state.did}</p>
         </div>
+        <hr/>
         <div>
-          <h3>Choose file to send to IPFS</h3>
           <form onSubmit={this.onSubmit}>
-            <input type="file" onChange={this.captureFile} />
-            <button className="primary" onClick={this.uploadFile}>Send it</button>
+            Title: <input type="text" value={this.state.title} onChange={this.updateTitle}/><br/>
+            <input type="file" onChange={this.captureFile} /><br/>
+            File type: {this.state.fileType}<br/>
+            File size: {this.state.fileSize}<br/>
+            File hash: {this.state.fileHash}<br/>
+            <button className="primary" onClick={this.uploadFile}>Upload</button><br/>
+            IPFS hash: {this.state.ipfsHash}<br/>
+            File link: <a href={`https://ipfs.infura.io/ipfs/${this.state.ipfsHash}`}>{`https://ipfs.infura.io/ipfs/${this.state.ipfsHash}`}</a>
           </form>
-          <p>File name: {this.state.fileName}</p>
-          <p>File size: {this.state.fileSize}</p>
-          <p>File hash: {this.state.fileHash}</p>
           <hr/>
-          <button onClick={this.signContent}>Sign Content</button>
+          <button onClick={this.signContent}>Sign Content</button><br/>
+          JWT Token: {this.state.jwt}<br/>
+          <button onClick={this.uploadCapsule}>Upload Capsule</button><br/>
+          Capsule hash: {this.state.capsuleHash}<br/>
+          Capsule link: <a href={`https://ipfs.infura.io/ipfs/${this.state.capsuleHash}`}>{`https://ipfs.infura.io/ipfs/${this.state.capsuleHash}`}</a>
           <hr/>
           <button onClick={this.onClick}>Get Transaction Receipt</button>
           <hr/>
