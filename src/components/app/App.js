@@ -1,6 +1,7 @@
 import './App.css';
 import React from 'react';
 import  { Connect } from 'uport-connect';
+import didJWT from 'did-jwt';
 import Web3 from 'web3';
 import ipfs from '../../config/ipfs';
 
@@ -36,8 +37,7 @@ class App extends React.Component {
 
   renderLogin() {
     this.uport.requestDisclosure({
-      requested: ['name'],
-      notifications: true
+      requested: ['name']
     });
     return (
       <div className="App-header">
@@ -86,7 +86,10 @@ class App extends React.Component {
 
   handleSignature = async (res) => {
     const jwt = res.payload;
-    console.log('jwt', jwt);
+    const decodedJWT = didJWT.decodeJWT(jwt);
+    const verifiedJWT = await didJWT.verifyJWT(jwt);
+    console.log('decodedJWT', decodedJWT);
+    console.log('verifiedJWT', verifiedJWT);
   };
     
   render() {
