@@ -4,6 +4,8 @@ import  { Connect } from 'uport-connect';
 import didJWT from 'did-jwt';
 import Web3 from 'web3';
 import ipfs from '../../config/ipfs';
+import bs58 from 'bs58';
+import capsulesRegistry from '../../config/capsules-registry';
 
 class App extends React.Component {
 
@@ -24,7 +26,10 @@ class App extends React.Component {
     fileHash: null,
     ipfsHash: null,
     jwt: null,
-    capsuleHash: null,
+    capIpfsHash: null,
+    capIpfsHashFunc: null,
+    capIpfsHashSize: null,
+    capIpfsDigest: null,
     ethAddress: null,
     transactionHash: null,
     txReceipt: null
@@ -71,8 +76,10 @@ class App extends React.Component {
   uploadFile = async (evt) => {
     evt.preventDefault();
     await ipfs.add(this.state.buffer, (err, ipfsHash) => {
+      debugger;
       console.log('err: ', err);
       console.log('ipfsHash: ', ipfsHash);
+      console.log('bs58 -  decode ', bs58.decode(ipfsHash[0].hash));
       this.setState({ ipfsHash: ipfsHash[0].hash });
     }); 
   }
@@ -109,13 +116,20 @@ class App extends React.Component {
       jwt: this.state.jwt
     };
     console.log("Capsule: ", capsuleObj);
-    const capsuleStr =  JSON.stringify(capsuleObj);
+    const capsuleStr = JSON.stringify(capsuleObj);
     const capsuleBuffer = Buffer.from(capsuleStr, 'utf8');
-    await ipfs.add(capsuleBuffer , (err, capsuleHash) => {
-      console.log('err: ', err);
-      console.log('capsuleHash: ', capsuleHash);
-      this.setState({ capsuleHash: capsuleHash[0].hash });
-    });
+    const results = await ipfs.add(capsuleBuffer);
+    const capIpfsHash = results[0].hash;
+    const decodedHash = bs58.decode(capIpfsHash);
+    const capIpfsHashFunc = decodedHash[0];
+    const capIpfsHashSize = decodedHash[1];
+    const capIpfsDigest = "0x" + decodedHash.slice(2).toString('hex');
+    this.setState({ capIpfsHash, capIpfsHashFunc, capIpfsHashSize, capIpfsDigest });
+  }
+
+  registerCapsule = async () => {
+    const { fileHash, capIpfsDigest, capIpfsHashFunc, capIpfsHashSize } = this.state
+    capsulesRegistry.registerCapsule(fileHash, capIpfsDigest, capIpfsHashFunc ,capIpfsHashSize );
   }
     
   render() {
@@ -148,10 +162,13 @@ class App extends React.Component {
           <button onClick={this.signContent}>Sign Content</button><br/>
           JWT Token: {this.state.jwt}<br/>
           <button onClick={this.uploadCapsule}>Upload Capsule</button><br/>
-          Capsule hash: {this.state.capsuleHash}<br/>
-          Capsule link: <a href={`https://ipfs.infura.io/ipfs/${this.state.capsuleHash}`}>{`https://ipfs.infura.io/ipfs/${this.state.capsuleHash}`}</a>
+          Capsule IPFS hash: {this.state.capIpfsHash}<br/>
+          Capsule IPFS hash function: {this.state.capIpfsHashFunc}<br/>
+          Capsule IPFS hash size: {this.state.capIpfsHashSize}<br/>
+          Capsule IPFS digest: {this.state.capIpfsDigest}<br/>
+          Capsule link: <a href={`https://ipfs.infura.io/ipfs/${this.state.capIpfsHash}`}>{`https://ipfs.infura.io/ipfs/${this.state.capIpfsHash}`}</a>
           <hr/>
-          <button onClick={this.onClick}>Get Transaction Receipt</button>
+          <button onClick={this.onClick}>Register Capsule</button>
           <hr/>
           <table>
             <thead>
