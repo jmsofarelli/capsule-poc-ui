@@ -1,7 +1,53 @@
-import web3 from './web3';
+export const address = {
+  rinkeby: '0xf2e86535D407EcA0E2AE42e8EE6edA47dEC6C93F',
+  kovan: '0x64DE21DDc0aD9984574Dfaf596f26257Bd07354d'
+}
 
-const address = "0xEe67c16D520051BE39DA5d93f550eF0b13c06683";
-const abi = [
+export const abi = [
+  {
+    anonymous: false,
+    inputs: [
+      {
+        indexed: false,
+        internalType: "bytes32",
+        name: "_contentHash",
+        type: "bytes32"
+      },
+      {
+        indexed: false,
+        internalType: "address",
+        name: "_owner",
+        type: "address"
+      }
+    ],
+    name: "CapsuleRegistered",
+    type: "event"
+  },
+  {
+    anonymous: false,
+    inputs: [
+      {
+        indexed: false,
+        internalType: "bytes32",
+        name: "_oldContentHash",
+        type: "bytes32"
+      },
+      {
+        indexed: false,
+        internalType: "bytes32",
+        name: "_newContentHash",
+        type: "bytes32"
+      },
+      {
+        indexed: false,
+        internalType: "address",
+        name: "_owner",
+        type: "address"
+      }
+    ],
+    name: "VersionUpdated",
+    type: "event"
+  },
   {
     constant: true,
     inputs: [
@@ -15,7 +61,7 @@ const abi = [
     outputs: [
       {
         internalType: "bytes32",
-        name: "ipfsHash",
+        name: "ipfsDigest",
         type: "bytes32"
       },
       {
@@ -25,7 +71,7 @@ const abi = [
       },
       {
         internalType: "uint8",
-        name: "size",
+        name: "hashSize",
         type: "uint8"
       },
       {
@@ -69,7 +115,7 @@ const abi = [
       },
       {
         internalType: "bytes32",
-        name: "_ipfsHash",
+        name: "_ipfsDigest",
         type: "bytes32"
       },
       {
@@ -79,7 +125,7 @@ const abi = [
       },
       {
         internalType: "uint8",
-        name: "_size",
+        name: "_hashSize",
         type: "uint8"
       }
     ],
@@ -94,12 +140,12 @@ const abi = [
     inputs: [
       {
         internalType: "bytes32",
-        name: "oldContentHash",
+        name: "_oldContentHash",
         type: "bytes32"
       },
       {
         internalType: "bytes32",
-        name: "newContentHash",
+        name: "_newContentHash",
         type: "bytes32"
       }
     ],
@@ -110,5 +156,3 @@ const abi = [
     type: "function"
   }
 ];
-
-export default new web3.eth.Contract(abi, address);
