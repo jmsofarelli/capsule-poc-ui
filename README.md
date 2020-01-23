@@ -5,3 +5,4 @@
 * The source code for the capsules registry can be found at https://github.com/jmsofarelli/capsules-registry
 * For more information about Capsules, please visit the website at [Capsules Space](http://capsules.space)
 * To launch a capsule now, click [here](http://capsules.space/#/launch)
+* Short demo video: https://youtu.be/-AhoW1bCAyQ
