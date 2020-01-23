@@ -12,7 +12,6 @@
 .cap-row {
   display: flex;
   flex-direction: row;
-  justify-content: flex-start;
 }
 
 .cap-label {
@@ -23,10 +22,4 @@
 
 .cap-field {
   padding: 10px;
-}
-
-.cap-check {
-  background-color: lightskyblue;
-  width: 10vw;
-  align-self: flex-end;
 }

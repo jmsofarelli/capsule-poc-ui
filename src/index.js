@@ -7,6 +7,7 @@ import { createStore, applyMiddleware } from 'redux'
 import App from './components/app/App'
 import reducers from './reducers'
 import * as serviceWorker from './serviceWorker'
+import uport from "./config/uport";
 
 ReactDOM.render(
     <Provider store={createStore(reducers, applyMiddleware(thunk))}>
