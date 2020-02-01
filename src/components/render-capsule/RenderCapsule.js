@@ -38,7 +38,6 @@ class RenderCapsule extends React.Component {
             contentSize, 
             jwtToken  
         } = data;
-        console.log('data', data);
         this.setState({
             capsuleIpfsAddr: ipfsAddr,
             authorName,
@@ -73,7 +72,6 @@ class RenderCapsule extends React.Component {
         const authorNameStatus = authorName === sigAuthorName;
         const authorDidStatus = authorDid === sigAuthorDid;
         const jwtTokenStatus = authorNameStatus && authorDidStatus && contentHashStatus;
-
         this.setState({
             authorNameStatus,
             authorDidStatus,
@@ -97,27 +95,27 @@ class RenderCapsule extends React.Component {
         //const { ipfsAddr } = this.props.match.params;
         return (
             <div>
-                <div className='cap-table'>
-                    <div className='cap-section' style={{ textAlign: 'center'}}>
+                <div className='table'>
+                    <div className='section' style={{ textAlign: 'center'}}>
                         <h2>{this.state.contentTitle}</h2>
                     </div>
                 </div>
-                <div className='cap-table'>
-                    <div className='cap-row'>
-                        <div className='cap-label'>Author name</div>
-                        <div className='cap-field'>{this.state.authorName} ({this.renderStatus(this.state.authorNameStatus)})</div>
+                <div className='table'>
+                    <div className='row'>
+                        <div className='label'>Author name</div>
+                        <div className='field'>{this.state.authorName} ({this.renderStatus(this.state.authorNameStatus)})</div>
                     </div>
-                    <div className='cap-row'>
-                        <div className='cap-label'>Author DID</div>
-                        <div className='cap-field'>{this.state.authorDid} ({this.renderStatus(this.state.authorDidStatus)})</div>
+                    <div className='row'>
+                        <div className='label'>Author DID</div>
+                        <div className='field'>{this.state.authorDid} ({this.renderStatus(this.state.authorDidStatus)})</div>
                     </div>
-                    <div className='cap-row'>
-                        <div className='cap-label'>Content Hash</div>
-                        <div className='cap-field'>{this.state.contentHash} ({this.renderStatus(this.state.contentHashStatus)})</div>
+                    <div className='row'>
+                        <div className='label'>Content Hash</div>
+                        <div className='field'>{this.state.contentHash} ({this.renderStatus(this.state.contentHashStatus)})</div>
                     </div>
-                    <div className='cap-row'>
-                        <div className='cap-label'>Signature</div>
-                        <div className='cap-field'>{formatJWT(this.state.jwtToken || '')} ({this.renderStatus(this.state.jwtTokenStatus)})</div>
+                    <div className='row'>
+                        <div className='label'>Signature</div>
+                        <div className='field'>{formatJWT(this.state.jwtToken || '')} ({this.renderStatus(this.state.jwtTokenStatus)})</div>
                     </div>
                 </div>
                 <div style={{ textAlign: 'center'}}>

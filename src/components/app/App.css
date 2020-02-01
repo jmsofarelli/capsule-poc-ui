@@ -1,32 +1,85 @@
-.cap-section, .cap-action {
+.section {
   padding: 10px;
 }
 
-.cap-table {
+.table {
   margin: 20px;
-  border: 1px solid grey ;
+  border: 1px solid lightgray ;
   display: flex;
   flex-direction: column;
 }
 
-.cap-row {
+.container {
+  width: 90vw;
+  margin: 0 auto 30px auto;
+}
+
+.header {
+  font-size: 26px;
+  font-weight: bold;
+  padding: 10px 5px;
+}
+
+.row-header {
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-start;
+  font-weight: bold;
+}
+
+.row {
   display: flex;
   flex-direction: row;
   justify-content: flex-start;
 }
 
-.cap-label {
-  padding: 10px;
+.row:hover  {
+  background-color: lightgrey;
+}
+
+.col {
+  padding: 5px;
+}
+
+.col-s {
+  width: 15vw;
+}
+
+.col-m {
   width: 20vw;
+} 
+
+.col-b {
+  width: 35vw;
+}
+
+.align-right {
+  text-align: right;
+}
+
+.label {
+  padding: 10px;
+  width: 13vw;
   font-weight: bold;
 }
 
-.cap-field {
+.field {
   padding: 10px;
+  display: flex;
+  align-items: center;
 }
 
 .cap-check {
   background-color: lightskyblue;
   width: 10vw;
   align-self: flex-end;
+}
+
+.value {
+  display: inline-block;
+  padding: 3px;
+  height: 32px;
+  width: 50vw;
+  border: 1px solid lightsteelblue;
+  box-sizing: border-box;
 }

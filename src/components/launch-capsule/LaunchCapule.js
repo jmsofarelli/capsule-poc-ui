@@ -1,43 +1,53 @@
 import './LaunchCapsule.css';
 import React from 'react';
-import Web3 from 'web3';
+import { Route } from 'react-router-dom';
+import web3 from '../../util/web3';
 import uport from "../../config/uport";
 import ipfs from '../../config/ipfs';
 import bs58 from 'bs58';
 import { formatJWT } from "../../util/format";
 import { keccak256 } from "js-sha3";
-import { abi, address } from '../../config/capsules-registry';
-import { NavLink } from 'react-router-dom';
+import { registryAbi, registryAddrs } from '../../config/capsules-registry';
+import { FaUpload } from 'react-icons/fa';
+import { BallPulse } from 'react-pure-loaders';
 
 class LaunchCapsule extends React.Component {
 
   componentDidMount = async () => {
     uport.onResponse('disclosureReq').then(this.handleLogin);
     uport.onResponse('verSigReq').then(this.handleSignature);
-    const web3 = this.web3 = new Web3(Web3.givenProvider);
     const network = await web3.eth.net.getNetworkType();
-    const registryAddr = address[network];
-    this.setState({ network, registryAddr });
-    this.capsulesRegistry = new web3.eth.Contract(abi, registryAddr);
+    const registryAddr = registryAddrs[network];
+    const state = { network, registryAddr };
+    if (uport.did) {
+      state.authorDid = uport.did;
+      state.authorName = uport.state.name;
+    }
+    this.setState(state);
+    this.capsulesRegistry = new web3.eth.Contract(registryAbi, registryAddr);
   }
 
   state = {
-    authorDid: null,
-    authorName: null,
-    contentBuffer: null,
+    authorDid: '',
+    authorName: '',
+    contentBuffer: undefined,
     contentTitle: '',
-    contentSize: null,
-    contentHash: null,
-    contentIpfsAddr: null,
-    jwtToken: null,
-    capsuleIpfsAddr: null,
-    capsuleIpfsHashFunc: null,
-    capsuleIpfsHashSize: null,
-    capsuleIpfsDigest: null,
-    network: null,
-    registryAddr: null,
-    txHash: null,
-    txReceipt: null
+    contentType: '',
+    contentSize: undefined,
+    contentHash: '',
+    contentRegistered: false,
+    contentIpfsAddr: '',
+    uploadingFile: false,
+    preparingSignature: false,
+    jwtToken: '',
+    capsuleIpfsAddr: '',
+    capsuleIpfsHashFunc: undefined,
+    capsuleIpfsHashSize: undefined,
+    capsuleIpfsDigest: '',
+    network: '',
+    registryAddr: '',
+    txHash: '',
+    txReceipt: ''
   };
 
   handleLogin = (res) => {
@@ -61,35 +71,147 @@ class LaunchCapsule extends React.Component {
     );
   }
 
+  logout = () => {
+    uport.logout();
+    this.setState({
+      authorDid: null,
+      authorName: null,
+    })
+  }
+
+  updateTitle = (evt) => {
+    this.setState({ 
+      contentTitle: evt.target.value,
+      jwtToken: '',
+      capsuleIpfsAddr: '',
+      capsuleIpfsHashFunc: undefined,
+      capsuleIpfsHashSize: undefined,
+      capsuleIpfsDigest: '',
+      txHash: '',
+      txReceipt: ''
+    });
+  }
+
   captureFile = (evt) => {
     evt.stopPropagation();
     evt.preventDefault();
     const file = evt.target.files[0];
-    const reader = new window.FileReader();
-    reader.readAsArrayBuffer(file);
-    reader.onloadend = () => this.hashFile(file, reader);
+    if (file) {
+      const reader = new window.FileReader();
+      reader.readAsArrayBuffer(file);
+      reader.onloadend = () => this.hashFile(file, reader);
+    } else {
+      if (!this.state.contentBuffer) {
+        this.setState({ 
+          filename: '',
+          contentBuffer: undefined, 
+          contentType: '', 
+          contentSize: '', 
+          contentHash: '',
+          contentIpfsAddr: '',
+          jwtToken: '',
+          capsuleIpfsAddr: '',
+          capsuleIpfsHashFunc: undefined,
+          capsuleIpfsHashSize: undefined,
+          capsuleIpfsDigest: '',
+          txHash: '',
+          txReceipt: ''
+        });
+      }
+    }
   };
 
-  updateTitle = (evt) => {
-    this.setState({ contentTitle: evt.target.value });
-  }
-
   hashFile = async (file, reader) => {
+    const filename = file.name;
     const contentBuffer = reader.result;
     const contentType = file.type;
     const contentSize = file.size;
     const contentHash = '0x' + keccak256(contentBuffer);
-    this.setState({ contentBuffer, contentType, contentSize, contentHash});
+    if (contentHash !== this.state.contentHash) {
+      this.setState({ 
+        filename, 
+        contentBuffer, 
+        contentType, 
+        contentSize, 
+        contentHash, 
+        contentIpfsAddr: '', 
+        contentRegistered: false,
+        jwtToken: '',
+        capsuleIpfsAddr: '',
+        capsuleIpfsHashFunc: undefined,
+        capsuleIpfsHashSize: undefined,
+        capsuleIpfsDigest: '',
+        txHash: '',
+        txReceipt: ''
+      });
+      this.checkContentRegistered();
+    }
   };
 
-  uploadFile = async (evt) => {
-    evt.preventDefault();
-    await ipfs.add(this.state.contentBuffer, (err, ipfsRes) => {
-      this.setState({ contentIpfsAddr: ipfsRes[0].hash });
+  checkContentRegistered = () => {
+    console.log('contentHash', this.state.contentHash);
+    this.capsulesRegistry.methods.capsuleIDsByHash(this.state.contentHash).call().then(index => {
+      console.log('index', index);
+      if (parseInt(index) !== 0) {
+          this.setState({ contentRegistered: true });
+      }
     });
   }
 
+  renderContentRegistered = () => {
+    const { contentRegistered, network } = this.state;
+    if (contentRegistered) {
+      return (
+        <div className='row'>
+          <div className='label'></div>
+          <div className='field'><span style={{ color: 'red' }}>There is already a Capsule registered with this content hash in the {network} network!</span></div>
+        </div>
+      );
+    } else {
+      return null;
+    }
+     
+  }
+
+  renderUploadFileButton = () => {
+    if (this.state.uploadingFile) {
+      return (<BallPulse loading color="black"/>);
+    } else {
+      return (<button disabled={!this.canUploadFile()} onClick={this.uploadFile}>Upload to IPFS</button>);
+    }
+  }
+
+  canUploadFile = () => {
+    return this.state.contentBuffer && ! this.state.contentIpfsAddr;
+  }
+
+  uploadFile = async (evt) => {
+    evt.preventDefault();
+    this.setState({ uploadingFile: true });
+    await ipfs.add(this.state.contentBuffer, (err, ipfsRes) => {
+      this.setState({ 
+        contentIpfsAddr: ipfsRes[0].hash,
+        uploadingFile: false
+      });
+    });
+  }
+
+  renderSignContentButton = () => {
+    if (this.state.preparingSignature) {
+      return (<BallPulse color="black" loading />);
+    } else {
+      return (<button disabled={!this.canSign()} onClick={this.signContent}>Sign Content</button>);
+    }
+  }
+
+  canSign = () => {
+    const { jwtToken, authorDid, authorName, contentTitle, contentHash } = this.state;
+    return !jwtToken && authorDid && authorName && contentTitle && contentHash;
+  }
+
   signContent = () => {
+    
+    this.setState({ preparingSignature: true });
     const sub = this.state.authorDid;
     const unsignedClaim = {
       "Authorship": {
@@ -98,15 +220,37 @@ class LaunchCapsule extends React.Component {
         "ContenHash": this.state.contentHash,
       }
     }
-    uport.requestVerificationSignature(unsignedClaim, sub);
+    uport.requestVerificationSignature(unsignedClaim, { sub });
+    
+    /*
+    this.setState({ jwtToken: 'eyJ0eXAiOiJKV1QiLCJhbGciOiJFUzI1NkstUiJ9.eyJpYXQiOjE1Nzk0MzY5MzYsInN1YiI6ImRpZDpldGhyOjB4MDM4NGZhY2I3Njc3N2ExYzBhYTkyOTMzYmU1ZWUwMmIxNDQxMDYwNyIsImNsYWltIjp7IkF1dGhvcnNoaXAiOnsiQXV0aG9yIjoiSmVmZmVyc29uIFNvZmFyZWxsaSIsIkNvbnRlbkhhc2giOiIweDZjYjgyNmIwOTI5NTk3NzhmNGEyYTA1MDgwNmNiY2I5YTljNjMyOGRmZjFkODQ5NTc3ZDFiYzU3N2VhMzUyYTQifX0sImlzcyI6ImRpZDpldGhyOjB4MDM4NGZhY2I3Njc3N2ExYzBhYTkyOTMzYmU1ZWUwMmIxNDQxMDYwNyJ9.u2kHFu1090hzeJMfCkCE3ybQLuvqHENevJfy79mc054tugWn00PqJDLEnpOgwNjXrSPkRkGNCz5VuuKagOHjDAA' });
+    */
   }
 
   handleSignature = async (res) => {
     const jwt = res.payload;
-    this.setState({ jwtToken: jwt });
+    this.setState({
+      preparingSignature: false, 
+      jwtToken: jwt 
+    });
+    uport.onResponse('verSigReq').then(this.handleSignature);
   };
 
+  renderUploadCapsuleButton = () => {
+    if (this.state.uploadingCapsule) {
+      return (<BallPulse color="black" loading />);
+    } else {
+      return (<button disabled={!this.canUploadCapsule()} onClick={this.uploadCapsule}>Upload Capsule to IPFS</button>);
+    }
+  }
+
+  canUploadCapsule = () => {
+    const { capsuleIpfsAddr, authorName, authorDid, contentTitle, contentIpfsAddr, contentType, contentHash, contentSize, jwtToken } = this.state;
+    return !capsuleIpfsAddr && authorName && authorDid && contentTitle && contentIpfsAddr && contentType && contentHash && contentSize && jwtToken;
+  }
+
   uploadCapsule = async (evt) => {
+    this.setState({ uploadingCapsule: true });
     const { 
       authorName, 
       authorDid, 
@@ -119,138 +263,180 @@ class LaunchCapsule extends React.Component {
     } = this.state;
     const capsuleObj = { authorName, authorDid, contentTitle, contentIpfsAddr, contentType, contentHash, contentSize, jwtToken };
     const capsuleBuffer = Buffer.from(JSON.stringify(capsuleObj), 'utf8');
-    //const ipfsRes = await ipfs.add(capsuleBuffer);
     const ipfsRes = await ipfs.add([ {
       content: capsuleBuffer,
       path: `/capsule/${contentHash}.json`
     }]);
+    const uploadingCapsule = false;
     const capsuleIpfsAddr = ipfsRes[0].hash;
-    const decodedHash = bs58.decode(contentIpfsAddr);
+    const decodedHash = bs58.decode(capsuleIpfsAddr);
     const capsuleIpfsHashFunc = decodedHash[0];
     const capsuleIpfsHashSize = decodedHash[1];
     const capsuleIpfsDigest = "0x" + decodedHash.slice(2).toString('hex');
-    this.setState({ capsuleIpfsAddr, capsuleIpfsHashFunc, capsuleIpfsHashSize, capsuleIpfsDigest });
+    this.setState({ uploadingCapsule, capsuleIpfsAddr, capsuleIpfsHashFunc, capsuleIpfsHashSize, capsuleIpfsDigest });
+  }
+
+  renderRegistryAddress = () => {
+    const { network, registryAddr } = this.state;
+    if (!registryAddr) {
+      return <span style={{color: 'red'}}>There is no Capsules Registry in the {network} network</span>
+    } else {
+      const prefix = network !== 'main' ? `${network}.` : '';
+      const url = `https://${prefix}etherscan.io/address/${registryAddr}`;
+      return (<a rel="noopener noreferrer" target="_blank" href={url}>{registryAddr}</a>);
+    }
+  }
+
+  canRegisterCapsule = () => {
+    const { txHash, contentRegistered, contentHash, capsuleIpfsDigest, capsuleIpfsHashFunc, capsuleIpfsHashSize } = this.state;
+    return !txHash && !contentRegistered && contentHash && capsuleIpfsDigest && capsuleIpfsHashFunc && capsuleIpfsHashSize; 
   }
 
   registerCapsule = async () => {
     await window.ethereum.enable();
-    var accounts = await this.web3.eth.getAccounts();
+    var accounts = await web3.eth.getAccounts();
     const { contentHash, capsuleIpfsDigest, capsuleIpfsHashFunc, capsuleIpfsHashSize } = this.state;
     const txRes = await this.capsulesRegistry.methods.registerCapsule(contentHash, capsuleIpfsDigest, capsuleIpfsHashFunc, capsuleIpfsHashSize).send({from: accounts[0]});
-    console.log('txRes', txRes);
     const txHash = txRes.transactionHash;
     this.setState({ txHash });
+    this.fetchTxReceipt(txHash);
+  }
+
+  fetchTxReceipt = (txHash) => {
+    web3.eth.getTransactionReceipt(txHash, (err, txReceipt) => {
+      console.log(err, txReceipt);
+    });
   }
     
   render() {
-    if (!this.state.authorDid) {
+    if (!uport.did) {
       return this.renderLogin();
     }
     return (
-      <div className="App">
+      <div className="body">
         <div>
-          <div className='cap-table'>
-            <div className='cap-section'><h3>Author</h3></div>
-            <div className='cap-row'>
-              <div className='cap-label'>Name</div>
-              <div className='cap-field'>{this.state.authorName}</div>
+          
+          <div className='table'>
+            <div className='section'><h2>Author</h2></div>
+            <div className='row'>
+              <div className='label'>Name</div>
+              <div className='field'><span className="value">{this.state.authorName}</span></div>
             </div>
-            <div className='cap-row'>
-              <div className='cap-label'>DID</div>
-              <div className='cap-field'>{this.state.authorDid}</div>
+            <div className='row'>
+              <div className='label'>DID</div>
+              <div className='field'><span className="value">{this.state.authorDid}</span></div>
             </div>
-          </div>
-
-          <div className='cap-table'>
-            <div className='cap-section'><h3>Content</h3></div>
-            <div className='cap-row'>
-              <div className='cap-label'>Title</div>
-              <div className='cap-field'><input type="text" value={this.state.contentTitle} onChange={this.updateTitle}/></div>
-            </div>
-            <div className='cap-row'>
-              <div className='cap-label'>File</div>
-              <div className='cap-field'><input type="file" onChange={this.captureFile} /></div>
-            </div>
-            <div className='cap-row'>
-              <div className='cap-label'>Type</div>
-              <div className='cap-field'>{this.state.contentType}</div>
-            </div>
-            <div className='cap-row'>
-              <div className='cap-label'>Size</div>
-              <div className='cap-field'>{this.state.contentSize}</div>
-            </div>
-            <div className='cap-row'>
-              <div className='cap-label'>Hash (keccak256)</div>
-              <div className='cap-field'>{this.state.contentHash}</div>
-            </div>
-            <div className='cap-action'>
-              <button className="primary" onClick={this.uploadFile}>Upload to IPFS</button>
+            <div className='row'>
+              <div className='label'></div>
+              <div className='field'><button onClick={this.logout}>Logout</button></div>
             </div>
           </div>
 
-          <div className='cap-table'>
-            <div className='cap-section'><h3>File Storage</h3></div>
-            <div className='cap-row'>
-              <div className='cap-label'>IPFS Address</div>
-              <div className='cap-field'><a href={`https://ipfs.infura.io/ipfs/${this.state.contentIpfsAddr}`}>{this.state.contentIpfsAddr}</a></div>
+          <div className='table'>
+            <div className='section'><h2>Content</h2></div>
+            <div className='row'>
+              <div className='label'>Title</div>
+              <div className='field'><input type="text" value={this.state.contentTitle} onChange={this.updateTitle} /></div>
+            </div>
+            <div className='row'>
+              <div className='label'>File</div>
+              <div className='field'>
+                <input type="file" name="file" id="file" className="inputfile" onChange={this.captureFile}/>
+                <label htmlFor="file">
+                  <FaUpload />
+                  <span style={{ display: 'inline-block', marginLeft: '20px', paddingBottom: "3px"}}>{ this.state.filename || 'Choose an image file'}</span>
+                </label>
+              </div>
+            </div>
+            <div className='row'>
+              <div className='label'>Type</div>
+              <div className='field'><span className="value">{this.state.contentType}</span></div>
+            </div>
+            <div className='row'>
+              <div className='label'>Size</div>
+              <div className='field'><span className="value">{this.state.contentSize}</span></div>
+            </div>
+            <div className='row'>
+              <div className='label'>Hash (keccak256)</div>
+              <div className='field'><span className="value">{this.state.contentHash}</span></div>
+            </div>
+            {this.renderContentRegistered()}
+            <div className='row'>
+              <div className='label'></div>
+              <div className='field'>
+                {this.renderUploadFileButton()}
+              </div>
+            </div>
+            <div className='row'>
+              <div className='label'>IPFS Address</div>
+              <div className='field'><a rel="noopener noreferrer" target="_blank" href={`https://ipfs.infura.io/ipfs/${this.state.contentIpfsAddr}`}>{this.state.contentIpfsAddr}</a></div>
             </div>
           </div>
-
-          <div className='cap-table'>
-            <div className='cap-section'><h3>Signature</h3></div>
-            <div className='cap-action'>
-              <button onClick={this.signContent}>Sign Content</button>
+          
+          <div className='table'>
+            <div className='row'>
+              <div className='label'><h2>Signature</h2></div>
+              <div className='field'>
+                {this.renderSignContentButton()}
+              </div>
             </div>
-            <div className='cap-row'>
-              <div className='cap-label'>JWT Token</div>
-              <div className='cap-field'>{formatJWT(this.state.jwtToken || "")}</div>
-            </div>
-          </div>
-
-          <div className='cap-table'>
-            <div className='cap-section'><h3>Capsule</h3></div>
-            <div className='cap-action'>
-            <button onClick={this.uploadCapsule}>Upload Capsule to IPFS</button>
-            </div>
-            <div className='cap-row'>
-              <div className='cap-label'>IPFS Address</div>
-              <div className='cap-field'><a href={`https://ipfs.infura.io/ipfs/${this.state.capsuleIpfsAddr}`}>{this.state.capsuleIpfsAddr}</a></div>
-            </div>
-            <div className='cap-row'>
-              <div className='cap-label'>IPFS Hash Function</div>
-              <div className='cap-field'>{this.state.capsuleIpfsHashFunc}</div>
-            </div>
-            <div className='cap-row'>
-              <div className='cap-label'>IPFS Hash Size</div>
-              <div className='cap-field'>{this.state.capsuleIpfsHashSize}</div>
-            </div>
-            <div className='cap-row'>
-              <div className='cap-label'>IPFS Digest</div>
-              <div className='cap-field'>{this.state.capsuleIpfsDigest}</div>
-            </div>
-            <div className='cap-row'>
-              <div className='cap-label'>Render capsule</div>
-              <div className='cap-field'><NavLink to={`/render/${this.state.capsuleIpfsAddr}`} exact>Render</NavLink></div>
+            <div className='row'>
+              <div className='label'>JWT Token</div>
+              <div className='field'><span className="value">{formatJWT(this.state.jwtToken || "")}</span></div>
             </div>
           </div>
-
-          <div className='cap-table'>
-            <div className='cap-section'><h3>Registry</h3></div>
-            <div className='cap-row'>
-              <div className='cap-label'>Ethereum Network:</div>
-              <div className='cap-field'>{this.state.network}</div>
+          
+          <div className='table'>
+            <div className='row'>
+              <div className='label'><h2>Capsule</h2></div>
+              <div className='field' style={{display: 'flex', justifyContent: 'center'}}>
+                {this.renderUploadCapsuleButton()}
+              </div>
             </div>
-            <div className='cap-row'>
-              <div className='cap-label'>Registry Address:</div>
-              <div className='cap-field'>{this.state.registryAddr}</div>
+            <div className='row'>
+              <div className='label'>IPFS Address</div>
+              <div className='field'><a rel="noopener noreferrer" target="_blank" href={`https://ipfs.infura.io/ipfs/${this.state.capsuleIpfsAddr}`}>{this.state.capsuleIpfsAddr}</a></div>
             </div>
-            <div className='cap-action'>
-            <button onClick={this.registerCapsule}>Register Capsule</button>
+            <div className='row'>
+              <div className='label'>IPFS Hash Function</div>
+              <div className='field'><span className="value">{this.state.capsuleIpfsHashFunc}</span></div>
             </div>
-
-            <div className='cap-row'>
-              <div className='cap-label'>Ethreum Tx:</div>
-              <div className='cap-field'>{this.state.txHash}</div>
+            <div className='row'>
+              <div className='label'>IPFS Hash Size</div>
+              <div className='field'><span className="value">{this.state.capsuleIpfsHashSize}</span></div>
+            </div>
+            <div className='row'>
+              <div className='label'>IPFS Digest</div>
+              <div className='field'><span className="value">{this.state.capsuleIpfsDigest}</span></div>
+            </div>
+            <div className='row'>
+              <div className='label'></div>
+              <div className='field'>
+                <Route render={({ history }) => (
+                  <button disabled={!this.state.capsuleIpfsAddr} type='button' onClick={() => { history.push(`/render/${this.state.capsuleIpfsAddr}`) }}>Render Capsule</button>
+                )}/>
+              </div>
+            </div>
+          </div>
+          
+          <div className='table'>
+            <div className='section'><h2>Registry</h2></div>
+            <div className='row'>
+              <div className='label'>Ethereum Network</div>
+              <div className='field'><span className="value">{this.state.network}</span></div>
+            </div>
+            <div className='row'>
+              <div className='label'>Registry Address</div>
+              <div className='field'>{this.renderRegistryAddress()}</div>
+            </div>
+            {this.renderContentRegistered()}
+            <div className='row'>
+              <div className='label'></div>
+              <div className='field'><button disabled={!this.canRegisterCapsule()} onClick={this.registerCapsule}>Register Capsule</button></div>
+            </div>
+            <div className='row'>
+              <div className='label'>Ethreum Tx:</div>
+              <div className='field'><span className="value">{this.state.txHash}</span></div>
             </div>
           </div>
         </div>

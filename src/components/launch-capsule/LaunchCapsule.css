@@ -1,25 +1,25 @@
-.cap-section, .cap-action {
-  padding: 10px;
+.inputfile {
+	width: 0.1px;
+	height: 0.1px;
+	opacity: 0;
+	overflow: hidden;
+	position: absolute;
+	z-index: -1;
 }
 
-.cap-table {
-  margin: 20px;
-  border: 1px solid grey ;
-  display: flex;
-  flex-direction: column;
+.inputfile + label {
+  box-sizing: border-box;
+  width: 50vw;
+  padding: 10px 0 5px 15px;
+  font-size: 24px;
+  font-weight: 700;
+  color:white;
+  background-color: black;
+  display: inline-block;
+  cursor: pointer;
 }
 
-.cap-row {
-  display: flex;
-  flex-direction: row;
-}
-
-.cap-label {
-  padding: 10px;
-  width: 20vw;
-  font-weight: bold;
-}
-
-.cap-field {
-  padding: 10px;
+.inputfile:focus + label,
+.inputfile + label:hover {
+    background-color: rgb(99, 20, 2);
 }
